@@ -70,6 +70,7 @@ def main() -> None:
         sfreq=sfreq,
         n_outputs=4,
         final_conv_length="auto",
+        final_layer_with_constraint=True, # 开启线性层的约束
     )
 
     print(f"input_shape: {model.input_shape}") # (1, n_chans, n_times)

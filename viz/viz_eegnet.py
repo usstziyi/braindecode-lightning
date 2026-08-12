@@ -1,19 +1,3 @@
-"""演示：用 BNCI2014_001 数据集 + mne 正确推导信号维度并初始化 EEGNet。
-
-运行方式（从项目根目录）：
-    uv run python viz/demo_init_eegnet.py
-
-要点：
-1. 用 MOABBDataset 加载数据（底层就是 mne 对象）。
-2. 直接从 mne 的 info 读取采样率 sfreq、通道数 n_chans。
-3. 由窗口时长 (trial_stop - trial_start) × sfreq 得到 n_times。
-4. 用这些真实维度初始化 EEGNet，并做一次前向传播验证。
-
-本脚本为自包含 demo，直接使用 braindecode 提供的接口，不依赖 src 下的模块。
-"""
-
-
-
 import torch
 from braindecode.models import EEGNet
 
@@ -70,12 +54,6 @@ def main() -> None:
         format='png', 
         cleanup=True
     )
-
-
-
-
-
-
 
 
 if __name__ == "__main__":

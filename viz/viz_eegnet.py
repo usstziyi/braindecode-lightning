@@ -15,59 +15,18 @@
 
 
 import torch
-from numpy import multiply
-from braindecode.datasets import MOABBDataset
 from braindecode.models import EEGNet
-from braindecode.preprocessing import (
-    Filter,
-    PickTypes,
-    Preprocessor,
-    Resample,
-    create_windows_from_events,
-    exponential_moving_standardize,
-    preprocess,
-)
+
 from torchinfo import summary
 from torchview import draw_graph
 
 
-
-# V to µV
-def scale_to_microvolt(data):
-    return multiply(data, 1e6)
-
 def main() -> None:
-    dataset = MOABBDataset(
-        dataset_name="BNCI2014_001", 
-        subject_ids=[1],
-    )
-
-    preprocessors = [
-        PickTypes(eeg=True, stim=False, verbose=False),
-        Preprocessor(scale_to_microvolt),
-        Filter(l_freq=4.0, h_freq=38.0, verbose=False),
-        Resample(sfreq=128.0, verbose=False),
-        Preprocessor(
-            exponential_moving_standardize,
-            factor_new=1e-3,
-            init_block_size=1000,
-            apply_on_array=True,
-        ),
-    ]
-    preprocess(dataset, preprocessors)
-
-    sfreq = dataset.datasets[0].raw.info["sfreq"]
-    n_chans = dataset.datasets[0].raw.info["nchan"]
-
-    print(f"sfreq: {sfreq}")
-    print(f"n_chans: {n_chans}")
-
-
-
+   
     model = EEGNet(
-        n_chans=n_chans,
-        n_times=int(4.0 * sfreq),
-        sfreq=sfreq,
+        n_chans=22,
+        n_times=int(4.0 * 128.0),
+        sfreq=128.0,
         n_outputs=4,
         final_conv_length="auto",
         final_layer_with_constraint=True, # 开启线性层的约束

@@ -43,6 +43,7 @@ def load_dataset():
         window_size_samples=CONFIG["n_times"],
         window_stride_samples=CONFIG["n_times"],
         preload=True,
+        drop_bad_windows=True,  # 启用 mne.Epochs 路径，让 preload 参数真正生效
         verbose=False,
     )
 

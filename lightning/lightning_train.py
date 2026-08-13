@@ -69,6 +69,8 @@ def main():
         callbacks=[RichProgressBar(leave=True)],
     )
     trainer.fit(model = lm, datamodule = ldm)
+    
+    trainer.test(model = lm, datamodule = ldm)
 
 
 

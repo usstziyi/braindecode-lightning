@@ -34,9 +34,10 @@ class EEGNetLightningDataModule(L.LightningDataModule):
         super().__init__()
         self.batch_size = Config["batch_size"]
         self.num_workers = Config["num_workers"]
-        # # MPS 下多进程 DataLoader 会死锁（spawn + MPS），强制单进程
-        # if torch.backends.mps.is_available():
-        #     self.num_workers = 0
+
+        # MPS 下多进程 DataLoader，强制单进程
+        if torch.backends.mps.is_available():
+            self.num_workers = 0
 
         self.save_hyperparameters()
 

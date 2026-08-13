@@ -2,17 +2,16 @@ import lightning as L
 import torch
 from torch import nn
 from torch.nn import functional as F
-from eegnet_config import EEGNet_CONFIG as Config
-from eegnet_model import build_model
 from torchmetrics import MetricCollection, Accuracy, Precision, Recall, F1Score
+from ..models.eegnet import CONFIG, build_model
 
 class EEGNetLightningModule(L.LightningModule):
     def __init__(self):
         super().__init__()
 
-        self.n_classes = Config["n_classes"]
-        self.lr = Config["lr"]
-        self.weight_decay = Config["weight_decay"]
+        self.n_classes = CONFIG["n_classes"]
+        self.lr = CONFIG["lr"]
+        self.weight_decay = CONFIG["weight_decay"]
 
 
 
@@ -76,6 +75,11 @@ class EEGNetLightningModule(L.LightningModule):
         self.log("test_loss", loss, prog_bar=True)
         self.log_dict(self.test_metrics,prog_bar=True)
         return loss
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        x, y = batch
+        logits = self(x)
+        return logits.argmax(dim=1)
 
 
     def configure_optimizers(self):

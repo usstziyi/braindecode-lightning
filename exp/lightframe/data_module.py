@@ -1,12 +1,14 @@
-import lightning as L
+
 import torch
+import numpy as np
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split, Dataset
 from torchmetrics import Accuracy
-from datasets import load_dataset
-from eegnet_config import EEGNet_CONFIG as Config
-import numpy as np
+import lightning as L
+
+
+from ..models.eegnet import CONFIG, load_dataset
 
 
 # DataLoader 会自动从 train_windows 逐个取数据并组装成 batch
@@ -32,8 +34,8 @@ def custom_collate_super(batch):
 class EEGNetLightningDataModule(L.LightningDataModule):
     def __init__(self):
         super().__init__()
-        self.batch_size = Config["batch_size"]
-        self.num_workers = Config["num_workers"]
+        self.batch_size = CONFIG["batch_size"]
+        self.num_workers = CONFIG["num_workers"]
 
         # MPS 下多进程 DataLoader，强制单进程
         if torch.backends.mps.is_available():

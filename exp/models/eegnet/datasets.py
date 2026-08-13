@@ -1,7 +1,6 @@
 import torch
 from numpy import multiply
 from braindecode.datasets import MOABBDataset
-from eegnet_model import build_model
 from braindecode.preprocessing import (
     Filter,
     PickTypes,
@@ -11,7 +10,7 @@ from braindecode.preprocessing import (
     exponential_moving_standardize,
     preprocess,
 )
-from eegnet_config import EEGNet_CONFIG as CONFIG
+from .config import CONFIG
 
 # V to µV
 def scale_to_microvolt(data):

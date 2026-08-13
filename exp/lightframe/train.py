@@ -1,15 +1,12 @@
 import torch
-import os
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
 import lightning as L
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
-
-from eegnet_config import EEGNet_CONFIG as Config
-from lightning_data_module import EEGNetLightningDataModule
-from lightning_module import EEGNetLightningModule
 from torchinfo import summary
+
+from ..models.eegnet import CONFIG
+from .data_module import EEGNetLightningDataModule
+from .module import EEGNetLightningModule
+
 
 
 # 利用 Tensor Core 加速矩阵运算（medium/high 会牺牲少量精度换取性能）
@@ -46,8 +43,8 @@ def debug_data_module(ldm: EEGNetLightningDataModule):
 
 
 
-def main():
-    L.seed_everything(Config["seed"])
+def train():
+    L.seed_everything(CONFIG["seed"])
     ldm = EEGNetLightningDataModule()
     lm = EEGNetLightningModule()
     lm.example_input_array = torch.zeros(lm.model.input_shape)
@@ -61,7 +58,7 @@ def main():
 
 
     trainer = L.Trainer(
-        max_epochs=Config["n_epochs"], 
+        max_epochs=CONFIG["n_epochs"], 
         accelerator="auto",
         devices="auto",
         log_every_n_steps=10,
@@ -69,10 +66,5 @@ def main():
         callbacks=[RichProgressBar(leave=True)],
     )
     trainer.fit(model = lm, datamodule = ldm)
-    
-    trainer.test(model = lm, datamodule = ldm)
 
 
-
-if __name__ == "__main__":
-    main()

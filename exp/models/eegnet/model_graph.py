@@ -1,7 +1,7 @@
 import torch
 import os
 from braindecode.models import EEGNet
-from model import build_model
+from .model import build_model
 
 from torchinfo import summary
 from torchview import draw_graph

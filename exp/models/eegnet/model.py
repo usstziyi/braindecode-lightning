@@ -1,5 +1,17 @@
-from eegnet_config import EEGNet_CONFIG as CONFIG
+from .config import CONFIG
 from braindecode.models import EEGNet
+
+def build_model() -> EEGNet:
+    model = EEGNet(
+        n_chans=CONFIG["n_channels"],
+        n_times=CONFIG["n_times"],
+        sfreq=CONFIG["sfreq"],
+        n_outputs=CONFIG["n_classes"],
+        final_conv_length="auto",
+        final_layer_with_constraint=True,
+    )
+    
+    return model
 
 """EEGNet model from Lawhern et al (2018) [Lawhern2018]_.
 
@@ -106,17 +118,7 @@ from braindecode.models import EEGNet
 
 """
 
-def build_model() -> EEGNet:
-    model = EEGNet(
-        n_chans=CONFIG["n_channels"],
-        n_times=CONFIG["n_times"],
-        sfreq=CONFIG["sfreq"],
-        n_outputs=CONFIG["n_classes"],
-        final_conv_length="auto",
-        final_layer_with_constraint=True,
-    )
-    
-    return model
+
 
 
     

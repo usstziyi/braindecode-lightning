@@ -1,10 +1,8 @@
 import torch.nn as nn
-import numpy as np  
-import random
-from braindecode.models import EEGNet
 
 
-EEGNet_CONFIG = {
+
+CONFIG = {
     # ---- 数据相关 ----
     "DATASET_NAME": "BNCI2014_001",  # MOABB 数据集名称
     "subject_id": 1,              # MOABB 受试者

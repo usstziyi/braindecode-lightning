@@ -30,7 +30,6 @@ tempCodeRunnerFile.py
 vit_*/
 
 # lightning/
-lightning/
 lightning_logs/
 
 # checkpoints/

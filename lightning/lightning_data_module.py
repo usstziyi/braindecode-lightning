@@ -1,0 +1,86 @@
+import lightning as L
+import torch
+from torch import nn
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, random_split, Dataset
+from torchmetrics import Accuracy
+from datasets import load_dataset
+from eegnet_config import EEGNet_CONFIG as Config
+import numpy as np
+
+
+# DataLoader 会自动从 train_windows 逐个取数据并组装成 batch
+def custom_collate(batch):
+    # batch: list of tuples (x, y, crop_inds)
+    xs = [item[0] for item in batch]
+    ys = [item[1] for item in batch]
+    crop_inds = [item[2] for item in batch]
+    return (
+        torch.tensor(np.stack(xs)),         # X: (batch_size, n_channels, n_times)
+        torch.tensor(ys),                   # y: (batch_size,)
+        # torch.tensor(np.stack(crop_inds)) # (batch_size, 3)
+    )
+
+def custom_collate_super(batch):
+    batch = torch.utils.data.default_collate(batch)
+    return (
+        batch[0],                          # X: (batch_size, n_channels, n_times)
+        batch[1],                          # y: (batch_size,)
+        # torch.tensor(np.stack(batch[2])) # (batch_size, 3)
+    )
+
+class EEGNetLightningDataModule(L.LightningDataModule):
+    def __init__(self):
+        super().__init__()
+        self.batch_size = Config["batch_size"]
+        self.num_workers = Config["num_workers"]
+        # # MPS 下多进程 DataLoader 会死锁（spawn + MPS），强制单进程
+        # if torch.backends.mps.is_available():
+        #     self.num_workers = 0
+
+        self.save_hyperparameters()
+
+    # 主显卡执行一次
+    def prepare_data(self):
+        self.train_dataset, self.test_dataset = load_dataset()
+
+    # 所有显卡都执行
+    def setup(self, stage=None):
+        if stage in (None, "fit"):
+            train_size = int(0.8 * len(self.train_dataset))
+            val_size = len(self.train_dataset) - train_size
+            self.train_dataset, self.val_dataset = random_split(self.train_dataset, [train_size, val_size])
+        if stage == "test":
+            self.test_dataset = self.test_dataset
+
+
+
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=True,
+            collate_fn=custom_collate_super,
+            num_workers=self.num_workers,
+            persistent_workers=True if self.num_workers > 0 else False
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=False,
+            collate_fn=custom_collate_super,
+            num_workers=self.num_workers,
+            persistent_workers=True if self.num_workers > 0 else False
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=False,
+            collate_fn=custom_collate_super,
+            num_workers=self.num_workers
+        )

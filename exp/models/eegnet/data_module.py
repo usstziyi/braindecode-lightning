@@ -62,7 +62,7 @@ class DataModule(L.LightningDataModule):
             shuffle=True,
             collate_fn=custom_collate_super,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False,
+            persistent_workers=self.num_workers > 0,
         )
 
     def val_dataloader(self):
@@ -72,7 +72,7 @@ class DataModule(L.LightningDataModule):
             shuffle=False,
             collate_fn=custom_collate_super,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False,
+            persistent_workers=self.num_workers > 0,
         )
 
     def test_dataloader(self):

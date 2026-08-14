@@ -16,5 +16,5 @@ from . import ShallowFBCSPNet
 
 MODEL_REGISTRY = {
     "EEGNet": EEGNet,
-    "ShallowFBCSPNet": ShallowFBCSPNet,  # 新增模型在此注册
+    "ShallowFBCSPNet": ShallowFBCSPNet,
 }

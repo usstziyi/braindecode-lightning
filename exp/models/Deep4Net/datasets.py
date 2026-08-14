@@ -1,0 +1,71 @@
+import torch
+from numpy import multiply
+from braindecode.datasets import MOABBDataset, BaseConcatDataset
+from braindecode.preprocessing import (
+    Filter,
+    PickTypes,
+    Resample,
+    Preprocessor,
+    create_windows_from_events,
+    exponential_moving_standardize,
+    preprocess,
+)
+from .config import CONFIG
+
+# V to µV
+def scale_to_microvolt(data):
+    return multiply(data, 1e6)
+
+def load_dataset():
+    dataset = MOABBDataset(
+        dataset_name=CONFIG["DATASET_NAME"], 
+        # subject_ids=[CONFIG["subject_id"]],
+    )
+    # 从数据集中获取subject数量
+    n_subjects = len(dataset.description["subject"].unique())
+    print(f"数据集subject数量: {n_subjects}")
+
+    
+
+    preprocessors = [
+        PickTypes(eeg=True, stim=False, verbose=False),
+        Preprocessor(scale_to_microvolt),
+        Filter(l_freq=CONFIG["bandpass"][0], h_freq=CONFIG["bandpass"][1], verbose=False),
+        Resample(sfreq=CONFIG["sfreq"], verbose=False),
+        Preprocessor(
+            exponential_moving_standardize,  # 指数移动标准化函数，用于对数据进行标准化处理
+            factor_new=1e-3,  # 指数移动平均的平滑因子，控制历史数据的衰减速率，值越小越依赖历史
+            init_block_size=1000,  # 初始化块大小，用于计算初始统计量（均值和标准差）的样本数量
+        ),
+    ]
+    preprocess(dataset, preprocessors)
+
+    windows_dataset = create_windows_from_events(
+        dataset,
+        trial_start_offset_samples=0,
+        trial_stop_offset_samples=0,
+        window_size_samples=CONFIG["n_times"],
+        window_stride_samples=CONFIG["n_times"],
+        preload=True,
+        drop_bad_windows=True,  # 启用 mne.Epochs 路径，让 preload 参数真正生效
+        verbose=False,
+    )
+
+    # split by session
+    splits = windows_dataset.split(by="session")
+    train_windows_dataset = splits["0train"]
+    test_windows_dataset = splits["1test"]
+
+    # 最后一个subject作为val_dataset,其他subject作为train_dataset
+    subject_splits = train_windows_dataset.split(by="subject")
+    subject_ids = sorted(subject_splits.keys())
+    train_dataset = BaseConcatDataset([subject_splits[sid] for sid in subject_ids[:-1]])
+    val_dataset = subject_splits[subject_ids[-1]]
+    test_dataset = test_windows_dataset
+
+    # 打印数据集大小
+    print(f"训练集大小(窗口数): {len(train_dataset)}")
+    print(f"验证集大小(窗口数): {len(val_dataset)}")
+    print(f"测试集大小(窗口数): {len(test_dataset)}")
+
+    return train_dataset, val_dataset, test_dataset

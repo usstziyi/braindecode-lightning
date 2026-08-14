@@ -13,8 +13,10 @@
 
 from . import EEGNet
 from . import ShallowFBCSPNet
+from . import Deep4Net
 
 MODEL_REGISTRY = {
     "EEGNet": EEGNet,
     "ShallowFBCSPNet": ShallowFBCSPNet,
+    "Deep4Net": Deep4Net,
 }

@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from torch import nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split, Dataset
+from torch.utils.data import DataLoader
 from torchmetrics import Accuracy
 import lightning as L
 
@@ -44,16 +44,12 @@ class DataModule(L.LightningDataModule):
 
     # 主显卡执行一次
     def prepare_data(self):
-        self.train_dataset, self.test_dataset = load_dataset()
+        self.train_dataset, self.val_dataset, self.test_dataset = load_dataset()
 
     # 所有显卡都执行
     def setup(self, stage=None):
-        if stage in (None, "fit"):
-            train_size = int(0.8 * len(self.train_dataset))
-            val_size = len(self.train_dataset) - train_size
-            self.train_dataset, self.val_dataset = random_split(self.train_dataset, [train_size, val_size])
-        if stage == "test":
-            self.test_dataset = self.test_dataset
+        # train/val/test 已在 prepare_data 中按 subject 拆分完成
+        pass
 
     def train_dataloader(self):
         return DataLoader(

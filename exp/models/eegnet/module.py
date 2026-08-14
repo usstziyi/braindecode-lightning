@@ -2,7 +2,7 @@ import lightning as L
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torchmetrics import MetricCollection, Accuracy, Precision, Recall, F1Score
+from torchmetrics import MetricCollection, Accuracy, Precision, Recall, F1Score, CohenKappa
 
 from .config import CONFIG
 from .model import build_model
@@ -24,6 +24,7 @@ class LightningModule(L.LightningModule):
         self.train_metrics = MetricCollection(
             {
                 "train_acc": Accuracy(**metric_kwargs),
+                "train_kappa": CohenKappa(**metric_kwargs),
                 # "train_prec": Precision(**metric_kwargs),
                 # "train_rec": Recall(**metric_kwargs),
                 # "train_f1": F1Score(**metric_kwargs),
@@ -32,6 +33,7 @@ class LightningModule(L.LightningModule):
         self.val_metrics = MetricCollection(
             {
                 "val_acc": Accuracy(**metric_kwargs),
+                "val_kappa": CohenKappa(**metric_kwargs),
                 # "val_prec": Precision(**metric_kwargs),
                 # "val_rec": Recall(**metric_kwargs),
                 # "val_f1": F1Score(**metric_kwargs),
@@ -40,6 +42,7 @@ class LightningModule(L.LightningModule):
         self.test_metrics = MetricCollection(
             {
                 "test_acc": Accuracy(**metric_kwargs),
+                "test_kappa": CohenKappa(**metric_kwargs),
                 # "test_prec": Precision(**metric_kwargs),
                 # "test_rec": Recall(**metric_kwargs),
                 # "test_f1": F1Score(**metric_kwargs),
@@ -48,6 +51,7 @@ class LightningModule(L.LightningModule):
 
     def forward(self, x):
         return self.model(x)
+
 
     def training_step(self, batch, batch_idx):
         x, y = batch

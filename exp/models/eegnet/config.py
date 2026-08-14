@@ -5,7 +5,6 @@ import torch.nn as nn
 CONFIG = {
     # ---- 数据相关 ----
     "DATASET_NAME": "BNCI2014_001",  # MOABB 数据集名称
-    "subject_id": 1,              # MOABB 受试者
     "n_classes": 4,               # 分类数 -> EEGNet n_outputs
     "n_channels": 22,             # 电极数 -> EEGNet n_chans
 
@@ -37,8 +36,8 @@ CONFIG = {
 
     # ---- 训练相关 ----
     "batch_size": 32,
-    "num_workers": 2,
-    "n_epochs": 200,
+    "num_workers": 0,
+    "n_epochs": 500,
     "lr": 0.001,
     "weight_decay": 1e-4,
     "patience": 15,               # early stopping

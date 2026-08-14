@@ -6,10 +6,11 @@
 """
 
 import argparse
+import glob
 
 import torch
 import lightning as L
-from lightning.pytorch.callbacks import RichProgressBar
+from lightning.pytorch.callbacks import RichProgressBar, ModelCheckpoint, EarlyStopping
 from torchinfo import summary
 
 from models import MODEL_REGISTRY
@@ -73,15 +74,24 @@ def main():
         verbose=1,
     )
 
+    checkpoint = ModelCheckpoint(monitor="val_acc", mode="max", save_top_k=1)
+    early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=CONFIG["patience"])
+    
+
     trainer = L.Trainer(
         max_epochs=CONFIG["n_epochs"],
         accelerator="auto",
         devices="auto",
         log_every_n_steps=10,
         precision=local_precision(),
-        callbacks=[RichProgressBar(leave=True)],
+        callbacks=[RichProgressBar(leave=True), checkpoint, early_stopping],
     )
     trainer.fit(model=lm, datamodule=dm)
+
+    # trainer.test(model=lm, datamodule=dm) # 直接用刚训练好的模型测试
+    trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path)
+
+
 
 
 if __name__ == "__main__":

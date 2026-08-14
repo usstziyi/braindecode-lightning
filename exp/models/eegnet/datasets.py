@@ -1,6 +1,6 @@
 import torch
 from numpy import multiply
-from braindecode.datasets import MOABBDataset
+from braindecode.datasets import MOABBDataset, BaseConcatDataset
 from braindecode.preprocessing import (
     Filter,
     PickTypes,
@@ -21,6 +21,11 @@ def load_dataset():
         dataset_name=CONFIG["DATASET_NAME"], 
         # subject_ids=[CONFIG["subject_id"]],
     )
+    # 从数据集中获取subject数量
+    n_subjects = len(dataset.description["subject"].unique())
+    print(f"数据集subject数量: {n_subjects}")
+
+    
 
     preprocessors = [
         PickTypes(eeg=True, stim=False, verbose=False),
@@ -46,14 +51,21 @@ def load_dataset():
         verbose=False,
     )
 
-    # split
+    # split by session
     splits = windows_dataset.split(by="session")
     train_windows_dataset = splits["0train"]
     test_windows_dataset = splits["1test"]
 
+    # 最后一个subject作为val_dataset,其他subject作为train_dataset
+    subject_splits = train_windows_dataset.split(by="subject")
+    subject_ids = sorted(subject_splits.keys())
+    train_dataset = BaseConcatDataset([subject_splits[sid] for sid in subject_ids[:-1]])
+    val_dataset = subject_splits[subject_ids[-1]]
+    test_dataset = test_windows_dataset
 
     # 打印数据集大小
-    print(f"训练集大小(窗口数): {len(train_windows_dataset)}")
-    print(f"测试集大小(窗口数): {len(test_windows_dataset)}")
+    print(f"训练集大小(窗口数): {len(train_dataset)}")
+    print(f"验证集大小(窗口数): {len(val_dataset)}")
+    print(f"测试集大小(窗口数): {len(test_dataset)}")
 
-    return train_windows_dataset, test_windows_dataset
+    return train_dataset, val_dataset, test_dataset

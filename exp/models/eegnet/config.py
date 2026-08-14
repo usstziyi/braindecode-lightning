@@ -37,7 +37,7 @@ CONFIG = {
 
     # ---- 训练相关 ----
     "batch_size": 32,
-    "num_workers": 4,
+    "num_workers": 0,
     "n_epochs": 200,
     "lr": 0.001,
     "weight_decay": 1e-4,

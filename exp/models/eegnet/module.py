@@ -3,9 +3,12 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torchmetrics import MetricCollection, Accuracy, Precision, Recall, F1Score
-from ..models.eegnet import CONFIG, build_model
 
-class EEGNetLightningModule(L.LightningModule):
+from .config import CONFIG
+from .model import build_model
+
+
+class LightningModule(L.LightningModule):
     def __init__(self):
         super().__init__()
 
@@ -13,12 +16,10 @@ class EEGNetLightningModule(L.LightningModule):
         self.lr = CONFIG["lr"]
         self.weight_decay = CONFIG["weight_decay"]
 
-
-
         self.save_hyperparameters()
 
         self.model = build_model()
-        
+
         metric_kwargs = {"task": "multiclass", "num_classes": self.n_classes}
         self.train_metrics = MetricCollection(
             {
@@ -49,12 +50,12 @@ class EEGNetLightningModule(L.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-        x, y= batch
+        x, y = batch
         logits = self(x)
         loss = F.cross_entropy(logits, y)
         self.train_metrics(logits, y)
         self.log("train_loss", loss, prog_bar=True)
-        self.log_dict(self.train_metrics,prog_bar=True)
+        self.log_dict(self.train_metrics, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -63,7 +64,7 @@ class EEGNetLightningModule(L.LightningModule):
         loss = F.cross_entropy(logits, y)
         self.val_metrics(logits, y)
         self.log("val_loss", loss, prog_bar=True)
-        self.log_dict(self.val_metrics,prog_bar=True)
+        self.log_dict(self.val_metrics, prog_bar=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -73,7 +74,7 @@ class EEGNetLightningModule(L.LightningModule):
         self.test_metrics(logits, y)
 
         self.log("test_loss", loss, prog_bar=True)
-        self.log_dict(self.test_metrics,prog_bar=True)
+        self.log_dict(self.test_metrics, prog_bar=True)
         return loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -81,12 +82,10 @@ class EEGNetLightningModule(L.LightningModule):
         logits = self(x)
         return logits.argmax(dim=1)
 
-
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
-            self.parameters(), 
-            lr=self.lr, 
-            weight_decay=self.weight_decay
+            self.parameters(),
+            lr=self.lr,
+            weight_decay=self.weight_decay,
         )
         return optimizer
-      

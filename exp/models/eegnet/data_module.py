@@ -1,4 +1,3 @@
-
 import torch
 import numpy as np
 from torch import nn
@@ -7,8 +6,8 @@ from torch.utils.data import DataLoader, random_split, Dataset
 from torchmetrics import Accuracy
 import lightning as L
 
-
-from ..models.eegnet import CONFIG, load_dataset
+from .config import CONFIG
+from .datasets import load_dataset
 
 
 # DataLoader 会自动从 train_windows 逐个取数据并组装成 batch
@@ -31,7 +30,7 @@ def custom_collate_super(batch):
         # torch.tensor(np.stack(batch[2])) # (batch_size, 3)
     )
 
-class EEGNetLightningDataModule(L.LightningDataModule):
+class DataModule(L.LightningDataModule):
     def __init__(self):
         super().__init__()
         self.batch_size = CONFIG["batch_size"]
@@ -56,34 +55,31 @@ class EEGNetLightningDataModule(L.LightningDataModule):
         if stage == "test":
             self.test_dataset = self.test_dataset
 
-
-
-
     def train_dataloader(self):
         return DataLoader(
-            self.train_dataset, 
-            batch_size=self.batch_size, 
+            self.train_dataset,
+            batch_size=self.batch_size,
             shuffle=True,
             collate_fn=custom_collate_super,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False
+            persistent_workers=True if self.num_workers > 0 else False,
         )
 
     def val_dataloader(self):
         return DataLoader(
-            self.val_dataset, 
-            batch_size=self.batch_size, 
+            self.val_dataset,
+            batch_size=self.batch_size,
             shuffle=False,
             collate_fn=custom_collate_super,
             num_workers=self.num_workers,
-            persistent_workers=True if self.num_workers > 0 else False
+            persistent_workers=True if self.num_workers > 0 else False,
         )
 
     def test_dataloader(self):
         return DataLoader(
-            self.test_dataset, 
-            batch_size=self.batch_size, 
+            self.test_dataset,
+            batch_size=self.batch_size,
             shuffle=False,
             collate_fn=custom_collate_super,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
         )

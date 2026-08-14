@@ -17,22 +17,44 @@ from models import MODEL_REGISTRY
 
 
 def get_kernel_size(module):
-    """显示完整权重形状（含通道维度），格式为 [out, in, kH, kW]；卷积层附加 groups"""
-    kernel_size = None
-    if hasattr(module, "weight"):
-        # 参数化模块（ParametrizationList）没有 shape，需容错
-        shape = getattr(module.weight, "shape", None)
-        if shape is not None:
-            kernel_size = list(shape)
-    if kernel_size is None and hasattr(module, "kernel_size"):
-        k = module.kernel_size
-        kernel_size = list(k) if isinstance(k, (tuple, list)) else int(k)
-    if kernel_size is None:
-        return None
-    groups = getattr(module, "groups", None)
-    if groups is not None:
-        return f"{kernel_size} (g={groups})"
-    return kernel_size
+    """卷积层显示 (in,out),(kH,kW),(padding,stride),(groups)；CombinedConv 显示两个子卷积；池化层显示 (kH,kW),(padding,stride)；其余返回 None（显示 --）"""
+    def _t(v):
+        """把 int/tuple 归一化为 tuple，None 原样返回"""
+        if v is None:
+            return None
+        return tuple(v) if isinstance(v, (tuple, list)) else (v,)
+
+    def _conv_str(conv):
+        """单个卷积层的格式串 (in,out),(kH,kW),(padding,stride),(groups)"""
+        # 权重形状 [out, in, kH, kW]；参数化模块的 weight 可能没有 shape，退化用 kernel_size
+        shape = getattr(conv.weight, "shape", None)
+        if shape is not None and len(shape) in (3, 4):
+            in_out = (shape[1], shape[0])   # (in, out)
+            kernel = tuple(shape[2:])       # (kH, kW) 或 (k,)
+        else:
+            in_out = (conv.in_channels, conv.out_channels)
+            k = conv.kernel_size
+            kernel = tuple(k) if isinstance(k, (tuple, list)) else (k,)
+        return f"{in_out},{kernel},({_t(conv.padding)},{_t(conv.stride)}),({conv.groups})"
+
+    # braindecode CombinedConv：时间+空间两个卷积融合执行（forward 中不再单独调用子卷积，
+    # torchinfo 不会展开它们），这里把两个子卷积都显示出来
+    if type(module).__name__ == "CombinedConv" and hasattr(module, "conv_time") and hasattr(module, "conv_spat"):
+        return f"{_conv_str(module.conv_time)} ; {_conv_str(module.conv_spat)}"
+
+    # 卷积层（ConvNd 及其子类，含 braindecode 参数化卷积）
+    if isinstance(module, torch.nn.modules.conv._ConvNd):
+        return _conv_str(module)
+
+    # 池化层（MaxPool/AvgPool）：保留池化窗口信息
+    if isinstance(
+        module,
+        (torch.nn.MaxPool1d, torch.nn.MaxPool2d, torch.nn.MaxPool3d,
+         torch.nn.AvgPool1d, torch.nn.AvgPool2d, torch.nn.AvgPool3d),
+    ):
+        return f"{_t(module.kernel_size)},({_t(module.padding)},{_t(module.stride)})"
+
+    return None
 
 
 class DefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -74,7 +96,7 @@ def main():
         output_dir = os.path.join(os.path.dirname(__file__), output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    # 让 torchinfo 的 Kernel Shape 列显示完整权重形状（含通道维度）
+    # 让 torchinfo 的 Kernel Shape 列显示 (in,out),(kH,kW),(padding,stride),(groups)
     li.LayerInfo.get_kernel_size = staticmethod(get_kernel_size)
 
     model = MODEL_REGISTRY[args.model].build_model()

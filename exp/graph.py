@@ -81,7 +81,11 @@ def main():
 
     print(f"input_shape: {model.input_shape}") # (1, n_chans, n_times)
     print(f"input_window_seconds: {model.input_window_seconds}")
-    print(f"final_conv_length: {model.final_conv_length}")
+    # 卷积类模型为 final_conv_length，EEGConformer 等为 final_fc_length
+    if hasattr(model, "final_conv_length"):
+        print(f"final_conv_length: {model.final_conv_length}")
+    if hasattr(model, "final_fc_length"):
+        print(f"final_fc_length: {model.final_fc_length}")
 
     # 查看模型结构
     summary(

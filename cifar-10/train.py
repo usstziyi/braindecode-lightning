@@ -27,7 +27,7 @@ def main():
     dm = CIFAR10DataModule(
         data_dir="./data",
         batch_size=128,
-        num_workers=min(os.cpu_count(), 4),
+        num_workers=0,
         val_split=0.1,
     )
 

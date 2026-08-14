@@ -61,7 +61,8 @@ class CIFAR10DataModule(L.LightningDataModule):
             batch_size=self.hparams.batch_size,
             shuffle=True,
             num_workers=self.hparams.num_workers,
-            persistent_workers=True,  # 跨 epoch 复用 worker，避免重复初始化
+            # 跨 epoch 复用 worker，避免重复初始化（仅在 num_workers > 0 时生效）
+            persistent_workers=self.hparams.num_workers > 0,
         )
 
     def val_dataloader(self):
@@ -69,7 +70,7 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.val_ds,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
-            persistent_workers=True,
+            persistent_workers=self.hparams.num_workers > 0,
         )
 
     def test_dataloader(self):

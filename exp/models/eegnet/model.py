@@ -8,7 +8,7 @@ def build_model() -> EEGNet:
         sfreq=CONFIG["sfreq"],
         n_outputs=CONFIG["n_classes"],
         final_conv_length="auto",
-        final_layer_with_constraint=True,
+        final_layer_with_constraint=CONFIG["final_layer_with_constraint"],
     )
     
     return model

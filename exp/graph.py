@@ -57,6 +57,25 @@ def get_kernel_size(module):
     return None
 
 
+def get_layer_name(self, show_var_name, show_depth):
+    """层名列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)；根模型无路径，只显示类名"""
+    # 沿 parent_info 向上拼出模块在模型内的完整路径；根模型的 var_name 就是类名，不进入路径
+    path = ""
+    parent = self.parent_info
+    while parent is not None:
+        if parent.parent_info is not None:
+            path = f"{parent.var_name}.{path}" if path else parent.var_name
+        parent = parent.parent_info
+    if self.parent_info is not None and self.var_name:
+        path = f"{path}.{self.var_name}" if path else self.var_name
+    layer_name = f"{path} ({self.class_name})" if path else self.class_name
+    if show_depth and self.depth > 0:
+        layer_name += f": {self.depth}"
+        if self.depth_index is not None:
+            layer_name += f"-{self.depth_index}"
+    return layer_name
+
+
 class DefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     """帮助信息中显示默认值；default=None 的参数不显示（其实际默认值在运行时计算）"""
 
@@ -98,6 +117,8 @@ def main():
 
     # 让 torchinfo 的 Kernel Shape 列显示 (in,out),(kH,kW),(padding,stride),(groups)
     li.LayerInfo.get_kernel_size = staticmethod(get_kernel_size)
+    # 让 torchinfo 的 Layer 列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)
+    li.LayerInfo.get_layer_name = get_layer_name
 
     model = MODEL_REGISTRY[args.model].build_model()
 

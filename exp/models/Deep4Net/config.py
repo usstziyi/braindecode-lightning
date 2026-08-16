@@ -38,7 +38,7 @@ CONFIG = {
     "split_first_layer": True,    # 时间/空间卷积分离成两层
     "batch_norm": True,
     "batch_norm_alpha": 0.1,
-    "stride_before_pool": False,  # 池化前是否先步进卷积
+    "stride_before_pool": False,  # 决定降采样（时间维缩减）由 卷积的 stride 还是 池化的 stride 来承担。
 
     # ---- 训练相关 ----
     "batch_size": 32,

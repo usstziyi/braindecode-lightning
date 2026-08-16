@@ -76,7 +76,6 @@ def main():
 
     # 打印一次模型结构
     lm = m.LightningModule()
-    lm.example_input_array = torch.zeros(lm.model.input_shape)
 
     # 让 torchinfo 的 Layer 列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)
     li.LayerInfo.get_layer_name = get_layer_name
@@ -118,6 +117,8 @@ def main():
         )
 
         lm = m.LightningModule()
+        # 供 Lightning 自带 ModelSummary 打印输入/输出形状（fit 时随结构表展示）
+        lm.example_input_array = torch.zeros(lm.model.input_shape)
         trainer.fit(model=lm, datamodule=dm)
         results = trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path)
         acc = results[0]["test_acc"]

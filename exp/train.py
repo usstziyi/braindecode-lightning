@@ -21,14 +21,13 @@ import torch
 import lightning as L
 from lightning.pytorch.callbacks import RichProgressBar, ModelCheckpoint, EarlyStopping
 from torchinfo import summary
+import torchinfo.layer_info as li
 
 from models import MODEL_REGISTRY
 
 
 # 利用 Tensor Core 加速矩阵运算（medium/high 会牺牲少量精度换取性能）
 torch.set_float32_matmul_precision("high")
-
-
 # 自动选择精度（RTX 4090 原生支持 bf16，优先使用 bf16-mixed）
 def local_precision():
     if torch.cuda.is_available():
@@ -37,6 +36,27 @@ def local_precision():
         return "bf16-mixed"
     else:
         return "32-true"
+
+
+def get_layer_name(self, show_var_name, show_depth):
+    """层名列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)；根模型无路径，只显示类名"""
+    # 沿 parent_info 向上拼出模块在模型内的完整路径；根模型自身不进入路径，
+    # LightningModule 的 self.model 只是模型包装属性，同样跳过（避免路径前缀 model.）
+    path = ""
+    parent = self.parent_info
+    while parent is not None and parent.parent_info is not None:
+        if parent.var_name == "model":
+            break
+        path = f"{parent.var_name}.{path}" if path else parent.var_name
+        parent = parent.parent_info
+    if self.parent_info is not None and self.var_name and self.var_name != "model":
+        path = f"{path}.{self.var_name}" if path else self.var_name
+    layer_name = f"{path} ({self.class_name})" if path else self.class_name
+    if show_depth and self.depth > 0:
+        layer_name += f": {self.depth}"
+        if self.depth_index is not None:
+            layer_name += f"-{self.depth_index}"
+    return layer_name
 
 
 def main():
@@ -57,6 +77,10 @@ def main():
     # 打印一次模型结构
     lm = m.LightningModule()
     lm.example_input_array = torch.zeros(lm.model.input_shape)
+
+    # 让 torchinfo 的 Layer 列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)
+    li.LayerInfo.get_layer_name = get_layer_name
+
     summary(
         lm,
         input_size=lm.model.input_shape,

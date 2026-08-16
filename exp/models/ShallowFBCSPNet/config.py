@@ -33,10 +33,10 @@ CONFIG = {
     # ---- 训练相关 ----
     "batch_size": 32,
     "num_workers": 0,
-    "n_epochs": 5,
+    "n_epochs": 500,
     "lr": 0.001,
     "weight_decay": 1e-4,
     "patience": 15,               # early stopping
-    "n_folds": 5,                 # 交叉验证折数
+    "n_folds": 9,                 # 交叉验证折数
     "seed": 42,
 }

@@ -6,8 +6,11 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy
 import lightning as L
 
+from braindecode.datasets import BaseConcatDataset
+from sklearn.model_selection import GroupKFold
+
 from .config import CONFIG
-from .datasets import load_dataset
+from .datasets import load_windows_dataset
 
 
 # DataLoader 会自动从 train_windows 逐个取数据并组装成 batch
@@ -31,7 +34,10 @@ def custom_collate_super(batch):
     )
 
 class DataModule(L.LightningDataModule):
-    def __init__(self):
+    # 全部受试者的窗口数据集只加载一次，各 fold 复用（进程级缓存）
+    _windows_cache = None
+
+    def __init__(self, fold, n_folds=None, seed=42):
         super().__init__()
         self.batch_size = CONFIG["batch_size"]
         self.num_workers = CONFIG["num_workers"]
@@ -40,16 +46,57 @@ class DataModule(L.LightningDataModule):
         if torch.backends.mps.is_available():
             self.num_workers = 0
 
-        self.save_hyperparameters()
+        self.fold = fold                    # 交叉验证第几折（0 起）
+        self.n_folds = n_folds if n_folds is not None else CONFIG["n_folds"]
+        self.seed = seed
 
-    # 主显卡执行一次
-    def prepare_data(self):
-        self.train_dataset, self.val_dataset, self.test_dataset = load_dataset()
+        self.train_dataset = None
+        self.val_dataset = None
+        self.test_dataset = None
 
-    # 所有显卡都执行
+    @classmethod
+    def _load_windows(cls):
+        if cls._windows_cache is None:
+            cls._windows_cache = load_windows_dataset()
+        return cls._windows_cache
+
+    # 具体数据准备：受试者级 GroupKFold 拆分 + 训练折内随机 80/20 验证集
     def setup(self, stage=None):
-        # train/val/test 已在 prepare_data 中按 subject 拆分完成
-        pass
+        # fit / test 阶段 setup 会被多次调用，已构建则跳过
+        if self.train_dataset is not None:
+            return
+
+        windows_dataset = self._load_windows()
+        subject_splits = windows_dataset.split(by="subject")
+        subject_ids = np.array(sorted(subject_splits.keys(), key=str))
+        n_subjects = len(subject_ids)
+        n_folds = min(self.n_folds, n_subjects)
+
+        # 受试者级 GroupKFold：每个受试者作为一个样本，group 即其自身 ID
+        gkf = GroupKFold(n_splits=n_folds)
+        folds = list(gkf.split(np.arange(n_subjects)[:, None], groups=subject_ids))
+        train_idx, test_idx = folds[self.fold]
+
+        test_subject = subject_ids[test_idx[0]]
+        train_subjects = [s for s in subject_ids[train_idx]]
+        test_dataset = subject_splits[test_subject]
+
+        # 训练折（其余受试者的全部窗口）随机 80/20 划分出验证集（early stopping）
+        train_windows = BaseConcatDataset([subject_splits[s] for s in train_subjects])
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            train_windows,
+            [0.8, 0.2],
+            generator=torch.Generator().manual_seed(self.seed + self.fold),
+        )
+
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
+        print(
+            f"[DataModule] Fold {self.fold + 1}/{n_folds} | "
+            f"训练: {train_subjects} | 测试: {test_subject} | "
+            f"窗口 训练 {len(train_dataset)} / 验证 {len(val_dataset)} / 测试 {len(test_dataset)}"
+        )
 
     def train_dataloader(self):
         return DataLoader(

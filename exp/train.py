@@ -1,12 +1,21 @@
 """
-模型训练入口：加载指定模型（默认 EEGNet）并训练。
+模型训练入口：受试者级 Group K-Fold 交叉验证。
+
+协议：
+    对全部受试者做 K 折 GroupKFold（group = 受试者 ID，K = CONFIG["n_folds"] = 9，
+    9 个受试者/9 折等价于留一受试者）。
+    KFold 循环保留在本脚本；每个 fold 的具体数据准备（加载窗口、按受试者拆分、
+    训练折内随机 80/20 验证集）由 DataModule.setup() 完成：
+    8 个受试者的全部窗口随机 80/20 划分训练/验证集（early stopping），
+    剩余 1 个受试者的全部 session 作为测试集。最终报告各折测试准确率的平均 ± 标准差。
 
 运行方式（在 exp 目录下）：
     uv run python train.py [--model EEGNet]
 """
 
 import argparse
-import glob
+
+import numpy as np
 
 import torch
 import lightning as L
@@ -30,27 +39,8 @@ def local_precision():
         return "32-true"
 
 
-def debug_data_module(dm):
-    dm.prepare_data()
-    dm.setup("fit")
-    train_dataloader = dm.train_dataloader()
-    val_dataloader = dm.val_dataloader()
-    print(f"训练集批次数: {len(train_dataloader)}")
-    print(f"验证集批次数: {len(val_dataloader)}")
-
-    dm.setup("test")
-    test_dataloader = dm.test_dataloader()
-    print(f"测试集批次数: {len(test_dataloader)}")
-
-    for batch in train_dataloader:
-        x, y = batch
-        print(f"训练集样本形状: {x.shape}")
-        print(f"训练集标签形状: {y.shape}")
-        break
-
-
 def main():
-    parser = argparse.ArgumentParser(description="模型训练入口")
+    parser = argparse.ArgumentParser(description="模型训练入口（受试者级 Group K-Fold 交叉验证）")
     parser.add_argument(
         "--model",
         default="EEGNet",
@@ -63,10 +53,10 @@ def main():
     CONFIG = m.CONFIG
 
     L.seed_everything(CONFIG["seed"])
-    dm = m.DataModule()
+
+    # 打印一次模型结构
     lm = m.LightningModule()
     lm.example_input_array = torch.zeros(lm.model.input_shape)
-
     summary(
         lm,
         input_size=lm.model.input_shape,
@@ -74,24 +64,46 @@ def main():
         verbose=1,
     )
 
-    checkpoint = ModelCheckpoint(monitor="val_acc", mode="max", save_top_k=1)
-    early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=CONFIG["patience"])
-    
+    n_folds = CONFIG["n_folds"]
+    print(f"受试者级 GroupKFold 折数: {n_folds}")
 
-    trainer = L.Trainer(
-        max_epochs=CONFIG["n_epochs"],
-        accelerator="auto",
-        devices="auto",
-        log_every_n_steps=10,
-        precision=local_precision(),
-        callbacks=[RichProgressBar(leave=True), checkpoint, early_stopping],
-    )
-    trainer.fit(model=lm, datamodule=dm)
+    fold_accs = []
+    for fold in range(n_folds):
+        print(f"\n=== Fold {fold + 1}/{n_folds} ===")
 
-    # trainer.test(model=lm, datamodule=dm) # 直接用刚训练好的模型测试
-    trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path)
+        # 数据准备在 DataModule.setup() 内完成（受试者级 GroupKFold + 随机 80/20 验证集）
+        dm = m.DataModule(fold=fold, n_folds=n_folds, seed=CONFIG["seed"])
 
+        checkpoint = ModelCheckpoint(
+            monitor="val_acc",
+            mode="max",
+            save_top_k=1,
+            dirpath=f"checkpoints/{args.model}/fold_{fold + 1}",
+        )
+        early_stopping = EarlyStopping(
+            monitor="val_acc", mode="max", patience=CONFIG["patience"]
+        )
 
+        trainer = L.Trainer(
+            max_epochs=CONFIG["n_epochs"],
+            accelerator="auto",
+            devices="auto",
+            log_every_n_steps=10,
+            precision=local_precision(),
+            callbacks=[RichProgressBar(leave=True), checkpoint, early_stopping],
+        )
+
+        lm = m.LightningModule()
+        trainer.fit(model=lm, datamodule=dm)
+        results = trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path)
+        acc = results[0]["test_acc"]
+        fold_accs.append(acc)
+        print(f"Fold {fold + 1} 测试准确率: {acc:.4f}")
+
+    accs = np.array(fold_accs)
+    print("\n========== Group K-Fold 交叉验证结果 ==========")
+    print(f"每折准确率: {[f'{a:.4f}' for a in accs]}")
+    print(f"平均准确率: {accs.mean():.4f} ± {accs.std():.4f}")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
-import torch
 from numpy import multiply
-from braindecode.datasets import MOABBDataset, BaseConcatDataset
+from braindecode.datasets import MOABBDataset
 from braindecode.preprocessing import (
     Filter,
     PickTypes,
@@ -16,16 +15,13 @@ from .config import CONFIG
 def scale_to_microvolt(data):
     return multiply(data, 1e6)
 
-def load_dataset():
-    dataset = MOABBDataset(
-        dataset_name=CONFIG["DATASET_NAME"], 
-        # subject_ids=[CONFIG["subject_id"]],
-    )
+def load_windows_dataset():
+    """加载全部受试者、全部 session 的窗口数据集（不做拆分），供交叉验证使用。"""
+    dataset = MOABBDataset(dataset_name=CONFIG["DATASET_NAME"])
+
     # 从数据集中获取subject数量
     n_subjects = len(dataset.description["subject"].unique())
     print(f"数据集subject数量: {n_subjects}")
-
-    
 
     preprocessors = [
         PickTypes(eeg=True, stim=False, verbose=False),
@@ -50,22 +46,4 @@ def load_dataset():
         drop_bad_windows=True,  # 启用 mne.Epochs 路径，让 preload 参数真正生效
         verbose=False,
     )
-
-    # split by session
-    splits = windows_dataset.split(by="session")
-    train_windows_dataset = splits["0train"]
-    test_windows_dataset = splits["1test"]
-
-    # 最后一个subject作为val_dataset,其他subject作为train_dataset
-    subject_splits = train_windows_dataset.split(by="subject")
-    subject_ids = sorted(subject_splits.keys())
-    train_dataset = BaseConcatDataset([subject_splits[sid] for sid in subject_ids[:-1]])
-    val_dataset = subject_splits[subject_ids[-1]]
-    test_dataset = test_windows_dataset
-
-    # 打印数据集大小
-    print(f"训练集大小(窗口数): {len(train_dataset)}")
-    print(f"验证集大小(窗口数): {len(val_dataset)}")
-    print(f"测试集大小(窗口数): {len(test_dataset)}")
-
-    return train_dataset, val_dataset, test_dataset
+    return windows_dataset

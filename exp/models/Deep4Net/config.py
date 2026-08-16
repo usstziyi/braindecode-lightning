@@ -47,6 +47,6 @@ CONFIG = {
     "lr": 0.001,
     "weight_decay": 1e-4,
     "patience": 15,               # early stopping
-    "n_folds": 5,                 # 交叉验证折数
+    "n_folds": 9,                 # 交叉验证折数
     "seed": 42,
 }

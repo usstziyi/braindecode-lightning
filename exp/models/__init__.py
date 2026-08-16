@@ -4,10 +4,10 @@
 用法：
     from exp.models import MODEL_REGISTRY
     m = MODEL_REGISTRY["EEGNet"]
-    m.CONFIG, m.build_model, m.load_dataset
+    m.CONFIG, m.build_model, m.load_windows_dataset
 
 新增模型：
-    1. 新建 models/<模型类名>/（如 ShallowFBCSPNet/），实现 CONFIG / build_model / load_dataset
+    1. 新建 models/<模型类名>/（如 ShallowFBCSPNet/），实现 CONFIG / build_model / load_windows_dataset
     2. 在 MODEL_REGISTRY 中注册
 """
 

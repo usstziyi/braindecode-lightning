@@ -92,4 +92,15 @@ class LightningModule(L.LightningModule):
             lr=self.lr,
             weight_decay=self.weight_decay,
         )
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=CONFIG["n_epochs"],  # 一个周期覆盖整个训练过程
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+            },
+        }

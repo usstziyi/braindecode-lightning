@@ -81,8 +81,8 @@ def main():
     CONFIG = m.CONFIG
 
     L.seed_everything(CONFIG["seed"])
-    dm = m.DataModule()
-    lm = m.LightningModule()
+    dm = m.EEGLightningDataModule()
+    lm = m.EEGLightningModule()
     lm.example_input_array = torch.zeros(lm.model.input_shape)
 
     # 让 torchinfo 的 Layer 列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)
@@ -110,7 +110,7 @@ def main():
     trainer.fit(model=lm, datamodule=dm)
 
     # trainer.test(model=lm, datamodule=dm) # 直接用刚训练好的模型测试
-    trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path)
+    trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path) # 加载最佳模型测试
 
 
 

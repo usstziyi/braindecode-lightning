@@ -8,7 +8,7 @@ from .config import CONFIG
 from .model import build_model
 
 
-class LightningModule(L.LightningModule):
+class EEGLightningModule(L.LightningModule):
     def __init__(self):
         super().__init__()
 

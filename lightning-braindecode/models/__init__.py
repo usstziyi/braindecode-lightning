@@ -22,3 +22,8 @@ MODEL_REGISTRY = {
     "Deep4Net": Deep4Net,
     "EEGConformer": EEGConformer,
 }
+
+
+__all__ = [
+    "MODEL_REGISTRY",
+]

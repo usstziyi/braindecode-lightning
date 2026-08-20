@@ -30,7 +30,7 @@ def custom_collate_super(batch):
         # torch.tensor(np.stack(batch[2])) # (batch_size, 3)
     )
 
-class DataModule(L.LightningDataModule):
+class EEGLightningDataModule(L.LightningDataModule):
     def __init__(self):
         super().__init__()
         self.batch_size = CONFIG["batch_size"]

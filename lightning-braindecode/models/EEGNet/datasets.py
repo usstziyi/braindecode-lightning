@@ -46,8 +46,8 @@ def load_dataset():
         trial_stop_offset_samples=0,
         window_size_samples=CONFIG["n_times"],
         window_stride_samples=CONFIG["n_times"],
-        preload=True,
-        drop_bad_windows=True,  # 启用 mne.Epochs 路径，让 preload 参数真正生效
+        preload=False,       # EEGWindowsDataset 惰性加载，preload 不生效（显式关掉避免误导）
+        use_mne_epochs=False,  # 强制走 EEGWindowsDataset 分支（无 drop_bad_windows，避免 mne.Epochs 警告）
         verbose=False,
     )
 

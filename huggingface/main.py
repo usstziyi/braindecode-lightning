@@ -76,6 +76,7 @@ def train_with_custom_dataset():
         logging_strategy="epoch",           # 每个 epoch 结束打印一次日志
         eval_strategy="epoch",              # 评估策略：每个 epoch 结束评估一次
         save_strategy="epoch",              # 每个 epoch 结束保存一次检查点
+        save_total_limit=1,                 # 磁盘上只保留 eval_loss 最优的那一个 checkpoint
         load_best_model_at_end=True,        # 训练结束时加载最优检查点
         metric_for_best_model="eval_loss",  # 用于挑选最优检查点的指标
         greater_is_better=False,            # eval_loss 越小越好

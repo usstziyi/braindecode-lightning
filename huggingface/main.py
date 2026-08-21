@@ -5,6 +5,8 @@ import numpy as np
 from datasets import load_dataset
 from sklearn.metrics import classification_report
 
+from proxy import _configure_network  # 网络策略：直连优先，失败走代理
+
 class CustomDataset(Dataset):
     """自定义数据集类"""
     def __init__(self, texts, labels, tokenizer, max_length=128):
@@ -36,6 +38,9 @@ class CustomDataset(Dataset):
 
 def train_with_custom_dataset():
     """使用自定义数据集训练"""
+    # 配置网络（下载模型/推送 Hub 前调用一次即可，进程内生效）
+    _configure_network()
+
     # 准备数据
     texts = [
         "The product is excellent and works perfectly",
@@ -68,6 +73,8 @@ def train_with_custom_dataset():
     # 训练参数
     training_args = TrainingArguments(
         output_dir="./huggingface/results", # 模型/日志/检查点保存的根目录
+        hub_model_id="usst-ziyi/distilbert-sentiment", # Hugging Face Hub 仓库 ID（训练结束推送目标）
+        hub_private_repo=True,              # 开启私有仓库模式
         num_train_epochs=10,                # 训练轮数（10 个 epoch）
         per_device_train_batch_size=4,      # 每个设备(train)的批大小
         per_device_eval_batch_size=4,       # 每个设备(eval)的批大小
@@ -90,6 +97,7 @@ def train_with_custom_dataset():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
+        processing_class=tokenizer,  # 随模型一并上传分词器，保证 Hub 上的模型可直接使用
     )
     
     # 训练
@@ -102,10 +110,28 @@ if __name__ == "__main__":
     trainer, model, tokenizer = train_with_custom_dataset()
     
     # 保存模型
-    model.save_pretrained("./trained_model")
-    tokenizer.save_pretrained("./trained_model")
+    model.save_pretrained("./huggingface/trained_model")
+    tokenizer.save_pretrained("./huggingface/trained_model")
+
+    # model.push_to_hub(
+    #     repo_id="usst-ziyi/distilbert-sentiment",
+    #     private=True, 
+    #     commit_message="Upload trained model",
+    # )
+    # tokenizer.push_to_hub(
+    #     repo_id="usst-ziyi/distilbert-sentiment",
+    #     private=True,
+    #     commit_message="Upload tokenizer",
+    # )
+
+    # 将最优模型（load_best_model_at_end 已载入内存）推送到 Hugging Face Hub
+    trainer.push_to_hub(commit_message="End of training: push best model")
 
     
+    # 从 Hugging Face Hub 下载刚推送的模型/分词器，验证 Hub 上的模型可正常使用
+    hub_model = AutoModelForSequenceClassification.from_pretrained("usst-ziyi/distilbert-sentiment")
+    hub_tokenizer = AutoTokenizer.from_pretrained("usst-ziyi/distilbert-sentiment")
+
     # 进行预测
     def predict_sentiment(text, model, tokenizer):
         inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
@@ -125,5 +151,5 @@ if __name__ == "__main__":
     ]
     
     for sentence in test_sentences:
-        result = predict_sentiment(sentence, model, tokenizer)
+        result = predict_sentiment(sentence, hub_model, hub_tokenizer)
         print(f"'{sentence}' -> {result}")

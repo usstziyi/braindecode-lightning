@@ -37,3 +37,10 @@ checkpoints/
 
 # logs/
 logs/
+
+# results/
+results/
+
+
+*.safetensors
+*.json

@@ -75,18 +75,29 @@ def main():
         choices=list(MODEL_REGISTRY.keys()),
         help="模型名（见 models.MODEL_REGISTRY）",
     )
+    parser.add_argument(
+        "--push-to-hf",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="训练结束后推送最佳模型到 Hugging Face Hub（默认开启；用 --no-push-to-hf 关闭）",
+    )
+    parser.add_argument(
+        "--repo-id",
+        default=None,
+        help="Hugging Face 仓库 ID，如 username/EEGNet-BNCI2014-001（配合 --push-to-hf）",
+    )
     args = parser.parse_args()
 
     m = MODEL_REGISTRY[args.model]
     CONFIG = m.CONFIG
 
-    L.seed_everything(CONFIG["seed"])
+    # L.seed_everything(CONFIG["seed"])
     dm = m.EEGLightningDataModule()
     lm = m.EEGLightningModule()
     lm.example_input_array = torch.zeros(lm.model.input_shape)
 
     # 让 torchinfo 的 Layer 列显示 模块完整路径 (类名)，如 conv_block.0.conv1 (Conv2d)
-    li.LayerInfo.get_layer_name = get_layer_name
+    # li.LayerInfo.get_layer_name = get_layer_name
 
     summary(
         lm,
@@ -111,6 +122,24 @@ def main():
 
     # trainer.test(model=lm, datamodule=dm) # 直接用刚训练好的模型测试
     trainer.test(model=lm, datamodule=dm, ckpt_path=checkpoint.best_model_path) # 加载最佳模型测试
+
+    
+    best_model = m.EEGLightningModule.load_from_checkpoint(checkpoint.best_model_path).model
+    # best_model.save_pretrained(f"best_{args.model}") # （config.json + pytorch_model.bin + model.safetensors）
+
+
+    # 把最佳模型推送到 Hugging Face Hub
+    if args.push_to_hf:
+        if not args.repo_id:
+            raise ValueError("推送 Hugging Face Hub 需指定 --repo-id，如 usst-ziyi/eegnet")
+        from proxy import _configure_network
+
+        _configure_network()  # 直连优先，失败则走本机代理
+        best_model.push_to_hub(
+            repo_id=args.repo_id,
+            private=True,
+            delete_patterns=["*.pth", "*.ckpt"],
+        )
 
 
 

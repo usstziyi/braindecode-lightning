@@ -18,6 +18,7 @@ dependencies = [
     "datasets>=5.0.1",
     "accelerate>=1.14.0",
     "peft>=0.20.0",
+    "bitsandbytes>=0.50.1",
 ]
 
 

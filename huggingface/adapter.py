@@ -101,6 +101,8 @@ def count_trainable(model):
 def build_args(output_dir):
     return TrainingArguments(
         output_dir=output_dir,
+        hub_model_id=HUB_MODEL_ID,       # Hub 仓库 ID（trainer.push_to_hub 推送目标）
+        hub_private_repo=True,           # 私有仓库
         num_train_epochs=3,                # 3 个 epoch，够看趋势且跑得快
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
@@ -124,7 +126,7 @@ def train_full_finetune(tokenizer):
     tracker = MemoryTracker()
     trainer = Trainer(
         model=model,
-        args=build_args("./huggingface/results_full"),
+        args=build_args("./huggingface/results/results_full"),
         train_dataset=train_ds,
         eval_dataset=val_ds,
         processing_class=tokenizer,
@@ -160,7 +162,7 @@ def train_lora(tokenizer):
     tracker = MemoryTracker()
     trainer = Trainer(
         model=model,
-        args=build_args("./huggingface/results_lora"),
+        args=build_args("./huggingface/results/results_lora"),
         train_dataset=train_ds,
         eval_dataset=val_ds,
         processing_class=tokenizer,
@@ -169,9 +171,12 @@ def train_lora(tokenizer):
     trainer.train()
     peak_mb = tracker.peak_mb
 
-    # 保存 LoRA adapter（很小，只有几 MB）
-    model.save_pretrained("./huggingface/lora_adapter")
-    tokenizer.save_pretrained("./huggingface/lora_adapter")
+    # 保存 LoRA adapter到本地（很小，只有几 MB）
+    model.save_pretrained("./huggingface/results/results_adapter")
+    tokenizer.save_pretrained("./huggingface/results/results_adapter")
+
+    # 将 adapter 推送到 Hub（需要 hub_model_id + 已登录 HF）
+    trainer.push_to_hub(commit_message="Upload LoRA adapter")
 
     del trainer
     gc.collect()
@@ -183,8 +188,8 @@ def train_lora(tokenizer):
 # ---------------- 推理验证（加载 adapter） ----------------
 def predict_with_lora():
     base = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
-    model = PeftModel.from_pretrained(base, "./huggingface/lora_adapter")
-    tokenizer = AutoTokenizer.from_pretrained("./huggingface/lora_adapter")
+    model = PeftModel.from_pretrained(base, HUB_MODEL_ID)
+    tokenizer = AutoTokenizer.from_pretrained(HUB_MODEL_ID)
 
     device = next(model.parameters()).device
     for text in ["This is fantastic, I love it!", "This is terrible, I hate it!"]:
@@ -220,6 +225,3 @@ if __name__ == "__main__":
 
     print("\nLoRA adapter 推理验证:")
     predict_with_lora()
-
-    # 把 adapter 推到 Hub（很小，推荐；需联网 + 已登录 HF）
-    lora_model.push_to_hub(HUB_MODEL_ID, private=True, commit_message="Upload LoRA adapter")
